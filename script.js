@@ -1,0 +1,294 @@
+// ── State ──
+let batchSize = 20, rangeIdx = 0, shuffleQ = false, shuffleA = false, randomMode = false;
+let quizQs = [], cur = 0, answered = false, okCount = 0, badCount = 0;
+let history = [];
+
+
+// ── Utils ──
+function $(id) { return document.getElementById(id); }
+function shuffle(a) {
+  a = [...a];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getRanges(bs) {
+  if (bs >= QUESTIONS.length) return [{
+    start: 0, end: QUESTIONS.length,
+    label: `Tất cả — Câu 1 → ${QUESTIONS[QUESTIONS.length - 1].num} (${QUESTIONS.length} câu)`
+  }];
+  const r = [];
+  for (let i = 0; i < QUESTIONS.length; i += bs) {
+    const end = Math.min(i + bs, QUESTIONS.length);
+    r.push({ start: i, end, label: `Câu ${QUESTIONS[i].num} → ${QUESTIONS[end - 1].num}  (${end - i} câu)` });
+  }
+  return r;
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ── Home: batch + range ──
+function updateRangeVisibility() {
+  $('range-row').style.display = (randomMode || batchSize >= QUESTIONS.length) ? 'none' : 'block';
+}
+
+function buildRanges() {
+  const sel = $('range-sel');
+  const ranges = getRanges(batchSize);
+  sel.innerHTML = ranges.map((r, i) => `<option value="${i}">${r.label}</option>`).join('');
+  rangeIdx = 0;
+  updateRangeVisibility();
+}
+buildRanges();
+
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    randomMode = tab.dataset.mode === 'rand';
+    if (randomMode) {
+      shuffleQ = true; shuffleA = true;
+      $('shuf-q').checked = true;
+      $('shuf-a').checked = true;
+      updateRangeVisibility();
+    } else {
+      shuffleQ = false; shuffleA = false;
+      $('shuf-q').checked = false;
+      $('shuf-a').checked = false;
+      buildRanges();
+    }
+  });
+});
+
+document.querySelectorAll('.count-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.count-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    batchSize = parseInt(btn.dataset.count);
+    if (randomMode) {
+      updateRangeVisibility();
+    } else {
+      buildRanges();
+    }
+  });
+});
+
+$('range-sel').addEventListener('change', e => { rangeIdx = parseInt(e.target.value); });
+$('shuf-q').addEventListener('change', e => { shuffleQ = e.target.checked; });
+$('shuf-a').addEventListener('change', e => { shuffleA = e.target.checked; });
+
+// ── Start ──
+function startQuiz() {
+  let batch;
+  if (randomMode) {
+    batch = shuffle(QUESTIONS).slice(0, batchSize);
+  } else {
+    rangeIdx = parseInt($('range-sel').value || 0);
+    const ranges = getRanges(batchSize);
+    const range = ranges[Math.min(rangeIdx, ranges.length - 1)];
+    batch = QUESTIONS.slice(range.start, range.end);
+    if (shuffleQ) batch = shuffle(batch);
+  }
+
+  quizQs = batch.map(q => {
+    let opts = [{ key: 'a', text: q.a }, { key: 'b', text: q.b }, { key: 'c', text: q.c }, { key: 'd', text: q.d }];
+    if (shuffleA) opts = shuffle(opts);
+    return { num: q.num, question: q.q, opts, ans: q.ans };
+  });
+
+  cur = 0; okCount = 0; badCount = 0; answered = false; history = [];
+  showScreen('quiz');
+  renderQ();
+}
+
+$('btn-start').addEventListener('click', startQuiz);
+$('btn-back').addEventListener('click', () => showScreen('home'));
+$('btn-home2').addEventListener('click', () => showScreen('home'));
+$('btn-retry').addEventListener('click', startQuiz);
+
+// ── Render question ──
+function renderQ() {
+  const q = quizQs[cur];
+  const total = quizQs.length;
+  const pos = cur + 1;
+
+  $('qc-cur').textContent = pos;
+  $('qc-tot').textContent = total;
+  $('sc-ok').textContent = okCount;
+  $('sc-bad').textContent = badCount;
+  $('pbar').style.width = ((pos - 1) / total * 100) + '%';
+  $('q-label').textContent = `Câu ${q.num}`;
+  $('q-text').textContent = q.question;
+
+  const container = $('options');
+  container.innerHTML = '';
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.style.animationDelay = (i * 0.06) + 's';
+    btn.innerHTML = `<span class="opt-key">${opt.key}</span><span class="opt-text">${opt.text}</span>`;
+    btn.addEventListener('click', () => answer(opt.key, q));
+    container.appendChild(btn);
+  });
+
+  $('btn-next').className = 'next-btn';
+  $('btn-next').textContent = 'Câu tiếp theo →';
+  answered = false;
+}
+
+// ── Answer ──
+function answer(selected, q) {
+  if (answered) return;
+  answered = true;
+
+  const isOk = selected === q.ans;
+  if (isOk) okCount++; else badCount++;
+  $('sc-ok').textContent = okCount;
+  $('sc-bad').textContent = badCount;
+
+  const selectedOpt = q.opts.find(o => o.key === selected);
+  const correctOpt = q.opts.find(o => o.key === q.ans);
+
+  history.push({
+    num: q.num,
+    question: q.question,
+    selectedKey: selected,
+    selectedText: selectedOpt ? selectedOpt.text : '',
+    correctKey: q.ans,
+    correctText: correctOpt ? correctOpt.text : '',
+    isOk
+  });
+
+  $('options').querySelectorAll('.opt-btn').forEach(btn => {
+    btn.disabled = true;
+    const keyEl = btn.querySelector('.opt-key');
+    const key = keyEl.textContent.trim().toLowerCase();
+    if (key === q.ans) {
+      btn.classList.add('state-correct');
+      keyEl.textContent = '✓';
+    } else if (key === selected && !isOk) {
+      btn.classList.add('state-wrong');
+      keyEl.textContent = '✗';
+    }
+  });
+
+  const nextBtn = $('btn-next');
+  nextBtn.classList.add('show');
+  if (cur === quizQs.length - 1) nextBtn.textContent = 'Xem kết quả →';
+}
+
+$('btn-next').addEventListener('click', () => {
+  if (cur < quizQs.length - 1) {
+    cur++;
+    renderQ();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    showResult();
+  }
+});
+
+// ── Result / Summary ──
+let activeFilter = 'all';
+
+function escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildReviewList(filter) {
+  activeFilter = filter;
+  document.querySelectorAll('.f-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === filter));
+
+  const items = filter === 'all' ? history : filter === 'ok' ? history.filter(h => h.isOk) : history.filter(h => !h.isOk);
+  const container = $('review-list');
+  container.innerHTML = '';
+
+  if (items.length === 0) {
+    container.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:40px 0;font-size:14px">Không có câu nào</div>`;
+    return;
+  }
+
+  items.forEach((item, idx) => {
+    const div = document.createElement('div');
+    div.className = 'rev-item ' + (item.isOk ? 'item-ok' : 'item-bad');
+    div.style.animationDelay = (idx * 0.03) + 's';
+    div.style.animation = 'fadeUp .25s ease both';
+
+    let answersHtml = `
+      <div class="rev-ans-row ${item.isOk ? 'row-ok' : 'row-bad'}">
+        <span class="rev-text">${escHtml(item.selectedText)}</span>
+        <span class="rev-icon">${item.isOk ? '✓' : '✗'}</span>
+      </div>`;
+
+    if (!item.isOk) {
+      answersHtml += `
+      <div class="rev-ans-row row-ok">
+        <span class="rev-text">${escHtml(item.correctText)}</span>
+        <span class="rev-icon">✓</span>
+      </div>`;
+    }
+
+    div.innerHTML = `
+      <div class="rev-top">
+        <span class="rev-num">Câu ${item.num}</span>
+        <span class="rev-status ${item.isOk ? 'sok' : 'sbad'}">${item.isOk ? '✓ Đúng' : '✗ Sai'}</span>
+      </div>
+      <div class="rev-q">${escHtml(item.question)}</div>
+      <div class="rev-answers">${answersHtml}</div>`;
+
+    container.appendChild(div);
+  });
+}
+
+document.querySelectorAll('.f-tab').forEach(tab => {
+  tab.addEventListener('click', () => buildReviewList(tab.dataset.filter));
+});
+
+// ── Theme ──
+(function() {
+  const html = document.documentElement;
+  const saved = localStorage.getItem('theme');
+
+  function applyTheme(theme) {
+    if (theme === 'light') {
+      html.setAttribute('data-theme', 'light');
+    } else {
+      html.removeAttribute('data-theme');
+    }
+  }
+
+  applyTheme(saved || 'dark');
+
+  $('theme-toggle').addEventListener('click', () => {
+    const isLight = html.getAttribute('data-theme') === 'light';
+    const next = isLight ? 'dark' : 'light';
+    localStorage.setItem('theme', next);
+    applyTheme(next);
+  });
+})();
+
+function showResult() {
+  const total = quizQs.length;
+  const pct = Math.round(okCount / total * 100);
+  const emoji = pct >= 90 ? '🏆' : pct >= 75 ? '🎯' : pct >= 60 ? '📖' : pct >= 40 ? '💪' : '🔄';
+  const title = pct >= 90 ? 'Xuất sắc!' : pct >= 75 ? 'Hoàn thành tốt!' : pct >= 60 ? 'Khá tốt!' : pct >= 40 ? 'Cần cố gắng thêm!' : 'Tiếp tục ôn luyện!';
+
+  $('res-emoji').textContent = emoji;
+  $('res-title').textContent = title;
+  $('res-desc').textContent = `Hoàn thành ${total} câu · ${okCount} đúng, ${badCount} sai`;
+  $('res-ok').textContent = okCount;
+  $('res-bad').textContent = badCount;
+  $('res-pct').textContent = pct + '%';
+
+  const wrongCount = history.filter(h => !h.isOk).length;
+  $('rh-counts').textContent = `${total} câu · ${wrongCount} câu sai`;
+
+  buildReviewList('all');
+  showScreen('result');
+}
