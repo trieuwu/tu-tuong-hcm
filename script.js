@@ -31,6 +31,7 @@ function getRanges(bs) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   $(id).classList.add('active');
+  $('theme-toggle').style.display = id === 'home' ? '' : 'none';
   window.scrollTo(0, 0);
 }
 
