@@ -124,7 +124,6 @@ function renderQ() {
   $('sc-ok').textContent = okCount;
   $('sc-bad').textContent = badCount;
   $('pbar').style.width = ((pos - 1) / total * 100) + '%';
-  $('q-label').textContent = `Câu ${q.num}`;
   $('q-text').textContent = q.question;
 
   const posLabels = ['A', 'B', 'C', 'D'];
