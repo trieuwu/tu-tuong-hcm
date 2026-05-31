@@ -1,296 +1,233 @@
-// ── State ──
-let batchSize = 25, rangeIdx = 0, shuffleQ = false, shuffleA = false, randomMode = false;
-let quizQs = [], cur = 0, answered = false, okCount = 0, badCount = 0;
-let history = [];
-
-
-// ── Utils ──
-function $(id) { return document.getElementById(id); }
-function shuffle(a) {
-  a = [...a];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function getRanges(bs) {
-  if (bs >= QUESTIONS.length) return [{
-    start: 0, end: QUESTIONS.length,
-    label: `Tất cả — Câu 1 → ${QUESTIONS[QUESTIONS.length - 1].num} (${QUESTIONS.length} câu)`
-  }];
-  const r = [];
-  for (let i = 0; i < QUESTIONS.length; i += bs) {
-    const end = Math.min(i + bs, QUESTIONS.length);
-    r.push({ start: i, end, label: `Câu ${QUESTIONS[i].num} → ${QUESTIONS[end - 1].num}  (${end - i} câu)` });
-  }
-  return r;
-}
-
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  $(id).classList.add('active');
-  $('theme-toggle').style.display = id === 'home' ? '' : 'none';
-  window.scrollTo(0, 0);
-}
-
-// ── Home: batch + range ──
-function updateRangeVisibility() {
-  $('range-row').style.display = (randomMode || batchSize >= QUESTIONS.length) ? 'none' : 'block';
-}
-
-function buildRanges() {
-  const sel = $('range-sel');
-  const ranges = getRanges(batchSize);
-  sel.innerHTML = ranges.map((r, i) => `<option value="${i}">${r.label}</option>`).join('');
-  rangeIdx = 0;
-  updateRangeVisibility();
-}
-buildRanges();
-
-document.querySelectorAll('.mode-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    randomMode = tab.dataset.mode === 'rand';
-    if (randomMode) {
-      shuffleQ = true; shuffleA = true;
-      $('shuf-q').checked = true;
-      $('shuf-a').checked = true;
-      updateRangeVisibility();
-    } else {
-      shuffleQ = false; shuffleA = false;
-      $('shuf-q').checked = false;
-      $('shuf-a').checked = false;
-      buildRanges();
+if(typeof QUESTIONS==='undefined'||!QUESTIONS)QUESTIONS=[];
+let kichThuocGoi=25;
+let chiSoPhamVi=0;
+let tronCauHoi=false;
+let tronDapAn=false;
+let cheDoNgauNhien=false;
+let danhSachCauHoiThi=[];
+let cauHienTai=0;
+let daTraLoi=false;
+let soCauDung=0;
+let soCauSai=0;
+let lichSuLamBai=[];
+function tim(id){return document.getElementById(id);}
+function tronMang(mang){
+    mang=[...mang];
+    for(let i=mang.length-1;i>0;i--){
+        let j=Math.floor(Math.random()*(i+1));
+        [mang[i],mang[j]]=[mang[j],mang[i]];
     }
-  });
+    return mang;
+}
+function layCacPhamVi(ktGoi){
+    if(QUESTIONS.length===0)return[{start:0,end:0,label:'Không có dữ liệu câu hỏi'}];
+    if(ktGoi>=QUESTIONS.length)return[{start:0,end:0,label:`Tất cả — Câu 1 → ${QUESTIONS[QUESTIONS.length-1].num} (${QUESTIONS.length} câu)`}];
+    let mangPhamVi=[];
+    for(let i=0;i<QUESTIONS.length;i+=ktGoi){
+        let ketThuc=Math.min(i+ktGoi,QUESTIONS.length);
+        mangPhamVi.push({start:i,end:ketThuc,label:`Câu ${QUESTIONS[i].num} → ${QUESTIONS[ketThuc-1].num} (${ketThuc-i} câu)`});
+    }
+    return mangPhamVi;
+}
+function hienManHinh(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    tim(id).classList.add('active');
+    tim('theme-toggle').style.display=id==='home'?'':'none';
+    window.scrollTo(0,0);
+}
+function capNhatAnHienPhamVi(){
+    tim('range-row').style.display=(cheDoNgauNhien||kichThuocGoi>=QUESTIONS.length)?'none':'block';
+}
+function taoCacPhamVi(){
+    let theChon=tim('range-sel');
+    let cacPhamVi=layCacPhamVi(kichThuocGoi);
+    theChon.innerHTML=cacPhamVi.map((r,i)=>`<option value="${i}">${r.label}</option>`).join('');
+    chiSoPhamVi=0;
+    capNhatAnHienPhamVi();
+}
+taoCacPhamVi();
+document.querySelectorAll('.mode-tab').forEach(theTab=>{
+    theTab.addEventListener('click',()=>{
+        document.querySelectorAll('.mode-tab').forEach(t=>t.classList.remove('active'));
+        theTab.classList.add('active');
+        cheDoNgauNhien=theTab.dataset.mode==='rand';
+        if(cheDoNgauNhien){
+            tronCauHoi=true;
+            tronDapAn=true;
+            tim('shuf-q').checked=true;
+            tim('shuf-a').checked=true;
+            capNhatAnHienPhamVi();
+        }else{
+            tronCauHoi=false;
+            tronDapAn=false;
+            tim('shuf-q').checked=false;
+            tim('shuf-a').checked=false;
+            taoCacPhamVi();
+        }
+    });
 });
-
-document.querySelectorAll('.count-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.count-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    batchSize = parseInt(btn.dataset.count);
-    if (randomMode) {
-      updateRangeVisibility();
-    } else {
-      buildRanges();
-    }
-  });
+document.querySelectorAll('.count-btn').forEach(nutBam=>{
+    nutBam.addEventListener('click',()=>{
+        document.querySelectorAll('.count-btn').forEach(b=>b.classList.remove('active'));
+        nutBam.classList.add('active');
+        kichThuocGoi=parseInt(nutBam.dataset.count);
+        if(cheDoNgauNhien)capNhatAnHienPhamVi();
+        else taoCacPhamVi();
+    });
 });
-
-$('range-sel').addEventListener('change', e => { rangeIdx = parseInt(e.target.value); });
-$('shuf-q').addEventListener('change', e => { shuffleQ = e.target.checked; });
-$('shuf-a').addEventListener('change', e => { shuffleA = e.target.checked; });
-
-// ── Start ──
-function startQuiz() {
-  let batch;
-  if (randomMode) {
-    batch = shuffle(QUESTIONS).slice(0, batchSize);
-  } else {
-    rangeIdx = parseInt($('range-sel').value || 0);
-    const ranges = getRanges(batchSize);
-    const range = ranges[Math.min(rangeIdx, ranges.length - 1)];
-    batch = QUESTIONS.slice(range.start, range.end);
-    if (shuffleQ) batch = shuffle(batch);
-  }
-
-  quizQs = batch.map(q => {
-    let opts = [{ key: 'a', text: q.a }, { key: 'b', text: q.b }, { key: 'c', text: q.c }, { key: 'd', text: q.d }];
-    if (shuffleA) opts = shuffle(opts);
-    return { num: q.num, question: q.q, opts, ans: q.ans };
-  });
-
-  cur = 0; okCount = 0; badCount = 0; answered = false; history = [];
-  showScreen('quiz');
-  renderQ();
-}
-
-$('btn-start').addEventListener('click', startQuiz);
-$('btn-back').addEventListener('click', () => showScreen('home'));
-$('btn-home2').addEventListener('click', () => showScreen('home'));
-$('btn-retry').addEventListener('click', startQuiz);
-
-// ── Render question ──
-function renderQ() {
-  const q = quizQs[cur];
-  const total = quizQs.length;
-  const pos = cur + 1;
-
-  $('qc-cur').textContent = pos;
-  $('qc-tot').textContent = total;
-  $('sc-ok').textContent = okCount;
-  $('sc-bad').textContent = badCount;
-  $('pbar').style.width = ((pos - 1) / total * 100) + '%';
-  $('q-text').textContent = q.question;
-
-  const posLabels = ['A', 'B', 'C', 'D'];
-  const container = $('options');
-  container.innerHTML = '';
-  q.opts.forEach((opt, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'opt-btn';
-    btn.dataset.key = opt.key;
-    btn.style.animationDelay = (i * 0.06) + 's';
-    btn.innerHTML = `<span class="opt-key">${posLabels[i]}</span><span class="opt-text">${opt.text}</span>`;
-    btn.addEventListener('click', () => answer(opt.key, q));
-    container.appendChild(btn);
-  });
-
-  $('btn-next').className = 'next-btn';
-  $('btn-next').textContent = 'Câu tiếp theo →';
-  answered = false;
-}
-
-// ── Answer ──
-function answer(selected, q) {
-  if (answered) return;
-  answered = true;
-
-  const isOk = selected === q.ans;
-  if (isOk) okCount++; else badCount++;
-  $('sc-ok').textContent = okCount;
-  $('sc-bad').textContent = badCount;
-
-  const selectedOpt = q.opts.find(o => o.key === selected);
-  const correctOpt = q.opts.find(o => o.key === q.ans);
-
-  history.push({
-    num: q.num,
-    question: q.question,
-    selectedKey: selected,
-    selectedText: selectedOpt ? selectedOpt.text : '',
-    correctKey: q.ans,
-    correctText: correctOpt ? correctOpt.text : '',
-    isOk
-  });
-
-  $('options').querySelectorAll('.opt-btn').forEach(btn => {
-    btn.disabled = true;
-    const keyEl = btn.querySelector('.opt-key');
-    const key = btn.dataset.key;
-    if (key === q.ans) {
-      btn.classList.add('state-correct');
-      keyEl.textContent = '✓';
-    } else if (key === selected && !isOk) {
-      btn.classList.add('state-wrong');
-      keyEl.textContent = '✗';
+tim('range-sel').addEventListener('change',e=>{chiSoPhamVi=parseInt(e.target.value);});
+tim('shuf-q').addEventListener('change',e=>{tronCauHoi=e.target.checked;});
+tim('shuf-a').addEventListener('change',e=>{tronDapAn=e.target.checked;});
+function batDauLamBai(){
+    let goiCauHoi;
+    if(cheDoNgauNhien)goiCauHoi=tronMang(QUESTIONS).slice(0,kichThuocGoi);
+    else{
+        chiSoPhamVi=parseInt(tim('range-sel').value||0);
+        let cacPhamVi=layCacPhamVi(kichThuocGoi);
+        let phamVi=cacPhamVi[Math.min(chiSoPhamVi,cacPhamVi.length-1)];
+        goiCauHoi=QUESTIONS.slice(phamVi.start,phamVi.end);
+        if(tronCauHoi)goiCauHoi=tronMang(goiCauHoi);
     }
-  });
-
-  const nextBtn = $('btn-next');
-  nextBtn.classList.add('show');
-  if (cur === quizQs.length - 1) nextBtn.textContent = 'Xem kết quả →';
+    danhSachCauHoiThi=goiCauHoi.map(q=>{
+        let cacLuaChon=[{key:'a',text:q.a},{key:'b',text:q.b},{key:'c',text:q.c},{key:'d',text:q.d}];
+        if(tronDapAn)cacLuaChon=tronMang(cacLuaChon);
+        return{num:q.num,question:q.q,opts:cacLuaChon,ans:q.ans};
+    });
+    cauHienTai=0;
+    soCauDung=0;
+    soCauSai=0;
+    daTraLoi=false;
+    lichSuLamBai=[];
+    hienManHinh('quiz');
+    hienThiCauHoi();
 }
-
-$('btn-next').addEventListener('click', () => {
-  if (cur < quizQs.length - 1) {
-    cur++;
-    renderQ();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  } else {
-    showResult();
-  }
+tim('btn-start').addEventListener('click',batDauLamBai);
+tim('btn-back').addEventListener('click',()=>hienManHinh('home'));
+tim('btn-home2').addEventListener('click',()=>hienManHinh('home'));
+tim('btn-retry').addEventListener('click',batDauLamBai);
+function hienThiCauHoi(){
+    let ch=danhSachCauHoiThi[cauHienTai];
+    let tongSo=danhSachCauHoiThi.length;
+    let viTri=cauHienTai+1;
+    tim('qc-cur').textContent=viTri;
+    tim('qc-tot').textContent=tongSo;
+    tim('sc-ok').textContent=soCauDung;
+    tim('sc-bad').textContent=soCauSai;
+    tim('pbar').style.width=((viTri-1)/tongSo*100)+'%';
+    tim('q-text').textContent=ch.question;
+    let nhanViTri=['A','B','C','D'];
+    let theChua=tim('options');
+    theChua.innerHTML='';
+    ch.opts.forEach((opt,i)=>{
+        let btn=document.createElement('button');
+        btn.className='opt-btn';
+        btn.dataset.key=opt.key;
+        btn.style.animationDelay=(i*0.06)+'s';
+        btn.innerHTML=`<span class="opt-key">${nhanViTri[i]}</span><span class="opt-text">${opt.text}</span>`;
+        btn.addEventListener('click',()=>xuLyTraLoi(opt.key,ch));
+        theChua.appendChild(btn);
+    });
+    tim('btn-next').className='next-btn';
+    tim('btn-next').textContent='Câu tiếp theo →';
+    daTraLoi=false;
+}
+function xuLyTraLoi(daChon,ch){
+    if(daTraLoi)return;
+    daTraLoi=true;
+    let dung=daChon===ch.ans;
+    if(dung)soCauDung++;else soCauSai++;
+    tim('sc-ok').textContent=soCauDung;
+    tim('sc-bad').textContent=soCauSai;
+    let luaChonDaChon=ch.opts.find(o=>o.key===daChon);
+    let luaChonDung=ch.opts.find(o=>o.key===ch.ans);
+    lichSuLamBai.push({
+        num:ch.num,
+        question:ch.question,
+        selectedKey:daChon,
+        selectedText:luaChonDaChon?luaChonDaChon.text:'',
+        correctKey:ch.ans,
+        correctText:luaChonDung?luaChonDung.text:'',
+        isOk:dung
+    });
+    tim('options').querySelectorAll('.opt-btn').forEach(btn=>{
+        btn.disabled=true;
+        let keyEl=btn.querySelector('.opt-key');
+        let key=btn.dataset.key;
+        if(key===ch.ans){
+            btn.classList.add('state-correct');
+            keyEl.textContent='✓';
+        }else if(key===daChon&&!dung){
+            btn.classList.add('state-wrong');
+            keyEl.textContent='✗';
+        }
+    });
+    let nutTiepTheo=tim('btn-next');
+    nutTiepTheo.classList.add('show');
+    if(cauHienTai===danhSachCauHoiThi.length-1)nutTiepTheo.textContent='Xem kết quả →';
+}
+tim('btn-next').addEventListener('click',()=>{
+    if(cauHienTai<danhSachCauHoiThi.length-1){
+        cauHienTai++;
+        hienThiCauHoi();
+        window.scrollTo({top:0,behavior:'smooth'});
+    }else hienThiKetQua();
 });
-
-// ── Result / Summary ──
-let activeFilter = 'all';
-
-function escHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+let boLocHienTai='all';
+function chuyenDoiHtml(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-function buildReviewList(filter) {
-  activeFilter = filter;
-  document.querySelectorAll('.f-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === filter));
-
-  const items = filter === 'all' ? history : filter === 'ok' ? history.filter(h => h.isOk) : history.filter(h => !h.isOk);
-  const container = $('review-list');
-  container.innerHTML = '';
-
-  if (items.length === 0) {
-    container.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:40px 0;font-size:14px">Không có câu nào</div>`;
-    return;
-  }
-
-  items.forEach((item, idx) => {
-    const div = document.createElement('div');
-    div.className = 'rev-item ' + (item.isOk ? 'item-ok' : 'item-bad');
-    div.style.animationDelay = (idx * 0.03) + 's';
-    div.style.animation = 'fadeUp .25s ease both';
-
-    let answersHtml = `
-      <div class="rev-ans-row ${item.isOk ? 'row-ok' : 'row-bad'}">
-        <span class="rev-text">${escHtml(item.selectedText)}</span>
-        <span class="rev-icon">${item.isOk ? '✓' : '✗'}</span>
-      </div>`;
-
-    if (!item.isOk) {
-      answersHtml += `
-      <div class="rev-ans-row row-ok">
-        <span class="rev-text">${escHtml(item.correctText)}</span>
-        <span class="rev-icon">✓</span>
-      </div>`;
+function taoDanhSachXemLai(loaiBoLoc){
+    boLocHienTai=loaiBoLoc;
+    document.querySelectorAll('.f-tab').forEach(t=>t.classList.toggle('active',t.dataset.filter===loaiBoLoc));
+    let cacMuc=loaiBoLoc==='all'?lichSuLamBai:loaiBoLoc==='ok'?lichSuLamBai.filter(h=>h.isOk):lichSuLamBai.filter(h=>!h.isOk);
+    let theChua=tim('review-list');
+    theChua.innerHTML='';
+    if(cacMuc.length===0){
+        theChua.innerHTML=`<div style="text-align:center;color:var(--text-muted);padding:40px 0;font-size:14px">Không có câu nào</div>`;
+        return;
     }
-
-    div.innerHTML = `
-      <div class="rev-top">
-        <span class="rev-num">Câu ${item.num}</span>
-        <span class="rev-status ${item.isOk ? 'sok' : 'sbad'}">${item.isOk ? '✓ Đúng' : '✗ Sai'}</span>
-      </div>
-      <div class="rev-q">${escHtml(item.question)}</div>
-      <div class="rev-answers">${answersHtml}</div>`;
-
-    container.appendChild(div);
-  });
+    cacMuc.forEach((item,idx)=>{
+        let theDiv=document.createElement('div');
+        theDiv.className='rev-item '+(item.isOk?'item-ok':'item-bad');
+        theDiv.style.animationDelay=(idx*0.03)+'s';
+        theDiv.style.animation='fadeUp .25s ease both';
+        let chuoiHtmlDapAn=`<div class="rev-ans-row ${item.isOk?'row-ok':'row-bad'}"><span class="rev-text">${chuyenDoiHtml(item.selectedText)}</span><span class="rev-icon">${item.isOk?'✓':'✗'}</span></div>`;
+        if(!item.isOk)chuoiHtmlDapAn+=`<div class="rev-ans-row row-ok"><span class="rev-text">${chuyenDoiHtml(item.correctText)}</span><span class="rev-icon">✓</span></div>`;
+        theDiv.innerHTML=`<div class="rev-top"><span class="rev-num">Câu ${item.num}</span><span class="rev-status ${item.isOk?'sok':'sbad'}">${item.isOk?'✓ Đúng':'✗ Sai'}</span></div><div class="rev-q">${chuyenDoiHtml(item.question)}</div><div class="rev-answers">${chuoiHtmlDapAn}</div>`;
+        theChua.appendChild(theDiv);
+    });
 }
-
-document.querySelectorAll('.f-tab').forEach(tab => {
-  tab.addEventListener('click', () => buildReviewList(tab.dataset.filter));
+document.querySelectorAll('.f-tab').forEach(tab=>{
+    tab.addEventListener('click',()=>taoDanhSachXemLai(tab.dataset.filter));
 });
-
-// ── Theme ──
-(function() {
-  const html = document.documentElement;
-  const saved = localStorage.getItem('theme');
-
-  function applyTheme(theme) {
-    if (theme === 'light') {
-      html.setAttribute('data-theme', 'light');
-    } else {
-      html.removeAttribute('data-theme');
+(function(){
+    let theHtml=document.documentElement;
+    let theMeDaLuu=localStorage.getItem('theme');
+    function apDungGiaoDien(giaoDien){
+        if(giaoDien==='light')theHtml.setAttribute('data-theme','light');
+        else theHtml.removeAttribute('data-theme');
     }
-  }
-
-  applyTheme(saved || 'dark');
-
-  $('theme-toggle').addEventListener('click', () => {
-    const isLight = html.getAttribute('data-theme') === 'light';
-    const next = isLight ? 'dark' : 'light';
-    localStorage.setItem('theme', next);
-    applyTheme(next);
-  });
+    apDungGiaoDien(theMeDaLuu||'dark');
+    tim('theme-toggle').addEventListener('click',()=>{
+        let laSang=theHtml.getAttribute('data-theme')==='light';
+        let giaoDienTiep=laSang?'dark':'light';
+        localStorage.setItem('theme',giaoDienTiep);
+        apDungGiaoDien(giaoDienTiep);
+    });
 })();
-
-function showResult() {
-  const total = quizQs.length;
-  const pct = Math.round(okCount / total * 100);
-  const emoji = pct >= 90 ? '🏆' : pct >= 75 ? '🎯' : pct >= 60 ? '📖' : pct >= 40 ? '💪' : '🔄';
-  const title = pct >= 90 ? 'Xuất sắc!' : pct >= 75 ? 'Hoàn thành tốt!' : pct >= 60 ? 'Khá tốt!' : pct >= 40 ? 'Cần cố gắng thêm!' : 'Tiếp tục ôn luyện!';
-
-  $('res-emoji').textContent = emoji;
-  $('res-title').textContent = title;
-  $('res-desc').textContent = `Hoàn thành ${total} câu · ${okCount} đúng, ${badCount} sai`;
-  $('res-ok').textContent = okCount;
-  $('res-bad').textContent = badCount;
-  $('res-pct').textContent = pct + '%';
-
-  const wrongCount = history.filter(h => !h.isOk).length;
-  $('rh-counts').textContent = `${total} câu · ${wrongCount} câu sai`;
-
-  buildReviewList('all');
-  showScreen('result');
+function hienThiKetQua(){
+    let tongSo=danhSachCauHoiThi.length;
+    let tiLeDung=Math.round(soCauDung/tongSo*100);
+    let bieuTuong=tiLeDung>=90?'🏆':tiLeDung>=75?'🎯':tiLeDung>=60?'📖':tiLeDung>=40?'💪':'🔄';
+    let tieuDe=tiLeDung>=90?'Xuất sắc!':tiLeDung>=75?'Hoàn thành tốt!':tiLeDung>=60?'Khá tốt!':tiLeDung>=40?'Cần cố gắng thêm!':'Tiếp tục ôn luyện!';
+    tim('res-emoji').textContent=bieuTuong;
+    tim('res-title').textContent=tieuDe;
+    tim('res-desc').textContent=`Hoàn thành ${tongSo} câu · ${soCauDung} đúng, ${soCauSai} sai`;
+    tim('res-ok').textContent=soCauDung;
+    tim('res-bad').textContent=soCauSai;
+    tim('res-pct').textContent=tiLeDung+'%';
+    let soCauBiSai=lichSuLamBai.filter(h=>!h.isOk).length;
+    tim('rh-counts').textContent=`${tongSo} câu · ${soCauBiSai} câu sai`;
+    taoDanhSachXemLai('all');
+    hienManHinh('result');
 }
