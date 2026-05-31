@@ -4,7 +4,8 @@
 
 ---
 
-## 💻 Phát triển bởi
+## 💻 Phát triển:
 
-* **Hà Tiến Triệu - 88.prideful:** Thực hiện bóc tách, chuyển đổi dữ liệu và đồng bộ hệ thống đề.
-* **DekTheDev (hoanghero125):** Dự án được fork và kế thừa nền tảng giao diện từ học phần Pháp luật đại cương.
+* **Hà Tiến Triệu - 88.prideful:** Thực hiện bóc tách, chuyển đổi dữ liệu và đồng bộ hệ thống đề trong đề cương 678 câu do anh Nguyễn Đức Huy biên soạn.
+* **DekTheDev (hoanghero125):** Dự    án được fork và kế thừa nền tảng giao diện từ học phần Pháp luật đại cương.
+và sự trợ giúp của một số công cụ AI đơn giản (không có khả năng đọc toàn bộ prj)
